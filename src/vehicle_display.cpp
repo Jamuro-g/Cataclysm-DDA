@@ -426,7 +426,7 @@ void vehicle::print_fuel_indicator( const catacurses::window &win, const point &
         if( debug_mode ) {
             mvwprintz( win, p + point( 6, 0 ), f_color, "%d/%d", f_left, cap );
         } else {
-            mvwprintz( win, p + point( 6, 0 ), f_color, "%d", f_left * 100 / cap );
+            mvwprintz( win, p + point( 6, 0 ), f_color, "%d", cap > 0 ? f_left * 100 / cap : 0 );
             wprintz( win, c_light_gray, "%c", 045 );
         }
     }
@@ -470,10 +470,10 @@ void vehicle::print_fuel_indicator( const catacurses::window &win, const point &
 
             if( debug_mode ) {
                 wprintz( win, tank_color, _( ", %d %s(%4.2f%%)/hour, %s until %s" ),
-                         rate, units, 100.0 * rate  / cap, to_string_clipped( estimate ), tank_goal );
+                         rate, units, cap > 0 ? 100.0 * rate  / cap : 0, to_string_clipped( estimate ), tank_goal );
             } else {
                 wprintz( win, tank_color, _( ", %3.1f%% / hour, %s until %s" ),
-                         100.0 * rate  / cap, to_string_clipped( estimate ), tank_goal );
+                         cap > 0 ? 100.0 * rate  / cap : 0, to_string_clipped( estimate ), tank_goal );
             }
         }
     }
