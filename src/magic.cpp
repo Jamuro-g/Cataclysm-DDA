@@ -984,7 +984,13 @@ int spell::xp() const
 
 void spell::gain_exp( int nxp )
 {
+    int oldLevel = get_level();
     experience += nxp;
+    if( oldLevel != get_level() ) {
+        character_id player_id = get_player_character().getID();
+        get_event_bus().send<event_type::player_levels_spell>( player_id,
+                id(), get_level() );
+    }
 }
 
 void spell::set_exp( int nxp )
@@ -1406,8 +1412,11 @@ cata::optional<tripoint> spell::random_valid_target( const Creature &caster,
 {
     const bool ignore_ground = has_flag( spell_flag::RANDOM_CRITTER );
     std::set<tripoint> valid_area;
+    spell_effect::override_parameters blast_params( *this );
+    // we want to pick a random target within range, not aoe
+    blast_params.aoe_radius = range();
     for( const tripoint &target : spell_effect::spell_effect_blast(
-             spell_effect::override_parameters( *this ), caster_pos, caster_pos ) ) {
+             blast_params, caster_pos, caster_pos ) ) {
         if( target != caster_pos && is_valid_target( caster, target ) &&
             ( !ignore_ground || g->critter_at<Creature>( target ) ) ) {
             valid_area.emplace( target );
@@ -2337,8 +2346,8 @@ void spell_events::notify( const cata::event &e )
             for( std::map<std::string, int>::iterator it = spell_cast.learn_spells.begin();
                  it != spell_cast.learn_spells.end(); ++it ) {
                 int learn_at_level = it->second;
-                if( learn_at_level == slvl ) {
-                    std::string learn_spell_id = it->first;
+                const std::string learn_spell_id = it->first;
+                if( learn_at_level <= slvl && !get_player_character().magic->knows_spell( learn_spell_id ) ) {
                     get_player_character().magic->learn_spell( learn_spell_id, get_player_character() );
                     spell_type spell_learned = spell_factory.obj( spell_id( learn_spell_id ) );
                     add_msg(

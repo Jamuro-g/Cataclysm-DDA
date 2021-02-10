@@ -662,12 +662,12 @@ static std::pair<std::string, nc_color> speed_description( float mon_speed_ratin
 
     const std::array<std::tuple<float, nc_color, std::string>, 8> cases = {{
             std::make_tuple( 1.30f, c_red, _( "It is much faster than you." ) ),
-            std::make_tuple( 1.00f, c_yellow, _( "It is faster than you." ) ),
-            std::make_tuple( 0.70f, c_white_yellow, _( "It is a bit faster than you." ) ),
+            std::make_tuple( 1.00f, c_light_red, _( "It is faster than you." ) ),
+            std::make_tuple( 0.70f, c_yellow, _( "It is a bit faster than you." ) ),
             std::make_tuple( 0.55f, c_white, _( "It is about as fast as you." ) ),
-            std::make_tuple( 0.50f, c_white_cyan, _( "It is a bit slower than you." ) ),
+            std::make_tuple( 0.50f, c_light_cyan, _( "It is a bit slower than you." ) ),
             std::make_tuple( 0.40f, c_cyan, _( "It is slower than you." ) ),
-            std::make_tuple( 0.20f, c_green, _( "It is much slower than you." ) ),
+            std::make_tuple( 0.20f, c_light_green, _( "It is much slower than you." ) ),
             std::make_tuple( 0.00f, c_green, _( "It is practically immobile." ) )
         }
     };
@@ -1297,8 +1297,13 @@ void monster::process_triggers()
     process_trigger( mon_trigger::FIRE, [this]() {
         int ret = 0;
         map &here = get_map();
+        const field_type_id fd_fire = ::fd_fire; // convert to int_id once
         for( const auto &p : here.points_in_radius( pos(), 3 ) ) {
-            ret += 5 * here.get_field_intensity( p, fd_fire );
+            // note using `has_field_at` without bound checks,
+            // as points that come from `points_in_radius` are guaranteed to be in bounds
+            const int fire_intensity =
+                here.has_field_at( p, false ) ? 5 * here.get_field_intensity( p, fd_fire ) : 0;
+            ret += fire_intensity;
         }
         return ret;
     } );

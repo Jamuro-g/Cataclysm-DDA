@@ -78,6 +78,9 @@ class item_location::impl
         virtual ~impl() = default;
 
         virtual type where() const = 0;
+        virtual type where_recursive() const {
+            return where();
+        }
         virtual item_location parent_item() const {
             return item_location();
         }
@@ -219,12 +222,19 @@ class item_location::impl::item_on_map : public item_location::impl
 
             on_contents_changed();
             item obj = target()->split( qty );
+            const auto get_local_location = []( Character & ch, item * it ) {
+                if( ch.has_item( *it ) ) {
+                    return item_location( ch, it );
+                } else {
+                    return item_location{};
+                }
+            };
             if( !obj.is_null() ) {
-                return item_location( ch, &ch.i_add( obj, should_stack ) );
+                return get_local_location( ch, &ch.i_add( obj, should_stack ) );
             } else {
                 item *inv = &ch.i_add( *target(), should_stack );
                 remove_item();
-                return item_location( ch, inv );
+                return get_local_location( ch, inv );
             }
         }
 
@@ -588,6 +598,10 @@ class item_location::impl::item_in_container : public item_location::impl
             return type::container;
         }
 
+        type where_recursive() const override {
+            return container.where_recursive();
+        }
+
         tripoint position() const override {
             return container.position();
         }
@@ -842,6 +856,11 @@ bool item_location::eventually_contains( item_location loc ) const
 item_location::type item_location::where() const
 {
     return ptr->where();
+}
+
+item_location::type item_location::where_recursive() const
+{
+    return ptr->where_recursive();
 }
 
 tripoint item_location::position() const

@@ -679,7 +679,7 @@ For information about tools with option to export ASCII art in format ready to b
 | learned_proficiencies       | (_optional_) Array of proficiency ids you gain when installing this CBM, and lose when uninstalling
 | installation_requirement    | (_optional_) Requirement id pointing to a requirement defining the tools and components necessary to install this CBM.
 | vitamin_absorb_mod          | (_optional_) Modifier to vitamin absorption, affects all vitamins. (default: `1.0`)
-
+| social_modifiers			  | (_optional_) Json object with optional members: persuade, lie, and intimidate which add or subtract that amount from those types of social checks
 ```C++
 {
     "id"           : "bio_batteries",
@@ -826,7 +826,7 @@ When you sort your inventory by category, these are the categories that are disp
 | `cut_dmg_verb`   | Verb used when material takes cutting damage.
 | `dmg_adj`        | Description added to damaged item in ascending severity.
 | `dmg_adj`        | Adjectives used to describe damage states of a material.
-| `density`        | Density of a material.
+| `density`        | Affects vehicle collision damage, with denser parts having the advantage over less-dense parts.
 | `vitamins`       | Vitamins in a material. Usually overridden by item specific values.  An integer percentage of ideal daily value.
 | `specific_heat_liquid` | Specific heat of a material when not frozen (J/(g K)). Default 4.186.
 | `specific_heat_solid`  | Specific heat of a material when frozen (J/(g K)). Default 2.108.
@@ -2553,7 +2553,8 @@ CBMs can be defined like this:
                                 // additional some CBM specific entries:
 "bionic_id" : "bio_advreactor", // ID of the installed bionic if not equivalent to "id"
 "difficulty" : 11,              // Difficulty of installing CBM
-"is_upgrade" : true             // Whether the CBM is an upgrade of another bionic.
+"is_upgrade" : true,            // Whether the CBM is an upgrade of another bionic.
+"installation_data" : "AID_bio_advreactor" // ID of the item which allows for almost guaranteed installation of corresponding bionic.
 ```
 
 ### Comestibles

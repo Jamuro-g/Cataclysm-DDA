@@ -669,7 +669,8 @@ vehicle *map::move_vehicle( vehicle &veh, const tripoint &dp, const tileray &fac
     }
     if( veh.is_towing() ) {
         veh.do_towing_move();
-        if( veh.tow_data.get_towed()->tow_cable_too_far() ) {
+        // veh.do_towing_move() may cancel towing, so we need to recheck is_towing here
+        if( veh.is_towing() && veh.tow_data.get_towed()->tow_cable_too_far() ) {
             add_msg( m_info, _( "A towing cable snaps off of %s." ),
                      veh.tow_data.get_towed()->disp_name() );
             veh.tow_data.get_towed()->invalidate_towing( true );
@@ -1357,7 +1358,7 @@ void map::furn_set( const tripoint &p, const furn_id &new_furniture )
     avatar &player_character = get_avatar();
     // If player has grabbed this furniture and it's no longer grabbable, release the grab.
     if( player_character.get_grab_type() == object_type::FURNITURE &&
-        player_character.grab_point == p && !new_t.is_movable() ) {
+        player_character.pos() + player_character.grab_point == p && !new_t.is_movable() ) {
         add_msg( _( "The %s you were grabbing is destroyed!" ), old_t.name() );
         player_character.grab( object_type::NONE );
     }
@@ -2285,12 +2286,8 @@ void map::drop_fields( const tripoint &p )
         // Active fields "drop themselves"
         if( entry.get_field_type()->accelerated_decay ) {
             add_field( below, entry.get_field_type(), entry.get_field_intensity(), entry.get_field_age() );
-            dropped.push_back( entry.get_field_type() );
+            remove_field( p, entry.get_field_type() );
         }
-    }
-
-    for( const auto &entry : dropped ) {
-        fld.remove_field( entry );
     }
 }
 
@@ -2860,11 +2857,10 @@ bool map::mop_spills( const tripoint &p )
     }
 
     field &fld = field_at( p );
-    for( auto it = fld.begin(); it != fld.end(); ) {
-        if( it->second.get_field_type().obj().phase == phase_id::LIQUID ) {
-            retval |= fld.remove_field( ( *it++ ).first );
-        } else {
-            ++it;
+    for( const auto &it : fld ) {
+        if( it.first->phase == phase_id::LIQUID ) {
+            remove_field( p, it.first );
+            retval = true;
         }
     }
 
@@ -5350,16 +5346,12 @@ int map::set_field_intensity( const tripoint &p, const field_type_id &type,
 {
     field_entry *field_ptr = get_field( p, type );
     if( field_ptr != nullptr ) {
-        int adj = ( isoffset ? field_ptr->get_field_intensity() : 0 ) + new_intensity;
-        if( adj > 0 ) {
-            on_field_modified( p, *type );
-            field_ptr->set_field_intensity( adj );
-            return adj;
-        } else {
-            remove_field( p, type );
-            return 0;
-        }
-    } else if( 0 + new_intensity > 0 ) {
+        int adj = ( isoffset && field_ptr->is_field_alive() ?
+                    field_ptr->get_field_intensity() : 0 ) + new_intensity;
+        on_field_modified( p, *type );
+        field_ptr->set_field_intensity( adj );
+        return adj;
+    } else if( new_intensity > 0 ) {
         return add_field( p, type, new_intensity ) ? new_intensity : 0;
     }
 
@@ -5374,17 +5366,17 @@ time_duration map::get_field_age( const tripoint &p, const field_type_id &type )
 
 int map::get_field_intensity( const tripoint &p, const field_type_id &type ) const
 {
-    const field_entry *field_ptr = field_at( p ).find_field( type );
+    const field_entry *field_ptr = get_field( p, type );
     return ( field_ptr == nullptr ? 0 : field_ptr->get_field_intensity() );
 }
 
-bool map::has_field_at( const tripoint &p, bool check_bounds )
+bool map::has_field_at( const tripoint &p, bool check_bounds ) const
 {
     const tripoint sm = ms_to_sm_copy( p );
     return ( !check_bounds || inbounds( p ) ) && get_cache( p.z ).field_cache[sm.x + sm.y * MAPSIZE];
 }
 
-field_entry *map::get_field( const tripoint &p, const field_type_id &type )
+field_entry *map::get_field( const tripoint &p, const field_type_id &type ) const
 {
     if( !inbounds( p ) || !has_field_at( p, false ) ) {
         return nullptr;
@@ -5460,21 +5452,7 @@ bool map::add_field( const tripoint &p, const field_type_id &type_id, int intens
 
 void map::remove_field( const tripoint &p, const field_type_id &field_to_remove )
 {
-    if( !inbounds( p ) ) {
-        return;
-    }
-
-    point l;
-    submap *const current_submap = unsafe_get_submap_at( p, l );
-    if( current_submap == nullptr ) {
-        debugmsg( "Tried to remove field at (%d,%d) but the submap is not loaded", l.x, l.y );
-        return;
-    }
-
-    if( current_submap->get_field( l ).remove_field( field_to_remove ) ) {
-        --current_submap->field_count;
-        on_field_modified( p, *field_to_remove );
-    }
+    set_field_intensity( p, field_to_remove, 0 );
 }
 
 void map::on_field_modified( const tripoint &p, const field_type &fd_type )

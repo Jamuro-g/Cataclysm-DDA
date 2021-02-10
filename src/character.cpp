@@ -2049,7 +2049,7 @@ void Character::recalc_sight_limits()
     const bool in_light = get_map().ambient_light_at( pos() ) > LIGHT_AMBIENT_LIT;
 
     // Set sight_max.
-    if( is_blind() || ( in_sleep_state() && !has_trait( trait_SEESLEEP ) ) ||
+    if( is_blind() || ( in_sleep_state() && !has_trait( trait_SEESLEEP ) && is_player() ) ||
         has_effect( effect_narcosis ) ) {
         sight_max = 0;
     } else if( has_effect( effect_boomered ) && ( !( has_trait( trait_PER_SLIME_OK ) ) ) ) {
@@ -8023,13 +8023,15 @@ std::string Character::extended_description() const
     return replace_colors( ss );
 }
 
-social_modifiers Character::get_mutation_social_mods() const
+social_modifiers Character::get_mutation_bionic_social_mods() const
 {
     social_modifiers mods;
     for( const mutation_branch *mut : cached_mutations ) {
         mods += mut->social_mods;
     }
-
+    for( const bionic &bio : *my_bionics ) {
+        mods += bio.info().social_mods;
+    }
     return mods;
 }
 
