@@ -2313,7 +2313,8 @@ int iuse::radio_on( player *p, item *it, bool t, const tripoint &pos )
         }
     } else { // Activated
         int ch = 1;
-        if( it->ammo_remaining() > 0 ) {
+        if( it->ammo_remaining() > 0 || ( it->has_flag( flag_USE_UPS ) &&
+                                          p->has_enough_charges( *it, false ) ) ) {
             ch = uilist( _( "Radio:" ), {
                 _( "Scan" ), _( "Turn off" )
             } );
@@ -4242,7 +4243,8 @@ int iuse::shocktonfa_on( player *p, item *it, bool t, const tripoint &pos )
 int iuse::mp3( player *p, item *it, bool, const tripoint & )
 {
     // TODO: avoid item id hardcoding to make this function usable for pure json-defined devices.
-    if( !it->units_sufficient( *p ) ) {
+    if( !it->units_sufficient( *p ) || !( it->has_flag( flag_USE_UPS ) &&
+                                          p->has_enough_charges( *it, false ) ) ) {
         p->add_msg_if_player( m_info, _( "The device's batteries are dead." ) );
     } else if( p->has_active_item( itype_mp3_on ) || p->has_active_item( itype_smartphone_music ) ||
                p->has_active_item( itype_afs_atomic_smartphone_music ) ||
@@ -4385,7 +4387,7 @@ int iuse::dive_tank( player *p, item *it, bool t, const tripoint & )
             if( one_in( 15 ) ) {
                 p->add_msg_if_player( m_bad, _( "You take a deep breath from your %s." ), it->tname() );
             }
-            if( it->charges == 0 ) {
+            if( it->ammo_remaining() == 0 ) {
                 p->add_msg_if_player( m_bad, _( "Air in your %s runs out." ), it->tname() );
                 it->set_var( "overwrite_env_resist", 0 );
                 it->convert( itype_id( it->typeId().str().substr( 0,
@@ -4398,7 +4400,7 @@ int iuse::dive_tank( player *p, item *it, bool t, const tripoint & )
         }
 
     } else { // Turning it on/off
-        if( it->charges == 0 ) {
+        if( it->ammo_remaining() == 0 ) {
             p->add_msg_if_player( _( "Your %s is empty." ), it->tname() );
         } else if( it->active ) { //off
             p->add_msg_if_player( _( "You turn off the regulator and close the air valve." ) );
@@ -4414,11 +4416,6 @@ int iuse::dive_tank( player *p, item *it, bool t, const tripoint & )
                 it->convert( itype_id( it->typeId().str() + "_on" ) ).active = true;
             }
         }
-    }
-    if( it->charges == 0 ) {
-        it->set_var( "overwrite_env_resist", 0 );
-        it->convert( itype_id( it->typeId().str().substr( 0,
-                               it->typeId().str().size() - 3 ) ) ).active = false; // 3 = "_on"
     }
     return it->type->charges_to_use();
 }
@@ -6334,10 +6331,14 @@ static std::string photo_quality_name( const int index )
 
 int iuse::einktabletpc( player *p, item *it, bool t, const tripoint &pos )
 {
+    //meep
     if( t ) {
-        if( !it->get_var( "EIPC_MUSIC_ON" ).empty() && ( it->ammo_remaining() > 0 ) ) {
+        if( !it->get_var( "EIPC_MUSIC_ON" ).empty() &&
+            ( it->ammo_remaining() > 0  || ( it->has_flag( flag_USE_UPS ) &&
+                                             p->has_enough_charges( *it, false ) ) ) ) {
             if( calendar::once_every( 5_minutes ) ) {
-                it->ammo_consume( 1, p->pos() );
+                //it->ammo_consume( 1, p->pos() );
+                p->consume_charges( *it, 1 );
             }
 
             //the more varied music, the better max mood.

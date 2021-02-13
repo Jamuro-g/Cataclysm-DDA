@@ -192,6 +192,17 @@ ifneq (,$(findstring clang,$(COMPILER)))
   CLANG = $(COMPILER)
 endif
 
+OS = $(shell uname -s)
+
+ifneq ($(findstring Darwin,$(OS)),)
+  ifndef NATIVE
+    NATIVE = osx
+  endif
+  ifndef CLANG
+    CLANG = 1
+  endif
+endif
+
 # Default to disabling clang
 ifndef CLANG
   CLANG = 0
@@ -240,8 +251,6 @@ ifdef AUTO_BUILD_PREFIX
   BUILD_PREFIX = $(if $(RELEASE),release-)$(if $(DEBUG_SYMBOLS),symbol-)$(if $(TILES),tiles-)$(if $(SOUND),sound-)$(if $(LOCALIZE),local-)$(if $(BACKTRACE),back-$(if $(LIBBACKTRACE),libbacktrace-))$(if $(SANITIZE),sanitize-)$(if $(MAPSIZE),map-$(MAPSIZE)-)$(if $(USE_XDG_DIR),xdg-)$(if $(USE_HOME_DIR),home-)$(if $(DYNAMIC_LINKING),dynamic-)$(if $(MSYS2),msys2-)
   export BUILD_PREFIX
 endif
-
-OS  = $(shell uname -s)
 
 # if $(OS) contains 'BSD'
 ifneq ($(findstring BSD,$(OS)),)
@@ -776,6 +785,10 @@ ifeq ($(BSD), 1)
   ifeq ($(LOCALIZE),1)
     LDFLAGS += -lintl -liconv
   endif
+
+  # libexecinfo, libintl and libiconv may be located in /usr/local on BSD
+  CXXFLAGS += -I/usr/local/include
+  LDFLAGS += -L/usr/local/lib
 endif
 
 # Global settings for Windows targets (at end)
@@ -900,7 +913,7 @@ ifeq ($(LTO), 1)
   endif
 endif
 
-all: version $(CHECKS) $(TARGET) $(L10N) $(TESTS) validate-pr
+all: version $(CHECKS) $(TARGET) $(L10N) $(TESTS)
 	@
 
 $(TARGET): $(OBJS)
@@ -922,7 +935,7 @@ $(BUILD_PREFIX)$(TARGET_NAME).a: $(OBJS)
 .PHONY: version
 version:
 	@( VERSION_STRING=$(VERSION) ; \
-            [ -e ".git" ] && GITVERSION=$$( git describe --tags --always --match "[0-9A-Z]*.[0-9A-Z]*" ) && DIRTYFLAG=$$( [[ -z $$(git diff --numstat | grep -v lang/po/) ]] || echo "-dirty") && VERSION_STRING=$$GITVERSION$$DIRTYFLAG ; \
+            [ -e ".git" ] && GITVERSION=$$( git describe --tags --always --match "[0-9A-Z]*.[0-9A-Z]*" ) && DIRTYFLAG=$$( [ -z "$$(git diff --numstat | grep -v lang/po/)" ] || echo "-dirty") && VERSION_STRING=$$GITVERSION$$DIRTYFLAG ; \
             [ -e "$(SRC_DIR)/version.h" ] && OLDVERSION=$$(grep VERSION $(SRC_DIR)/version.h|cut -d '"' -f2) ; \
             if [ "x$$VERSION_STRING" != "x$$OLDVERSION" ]; then printf '// NOLINT(cata-header-guard)\n#define VERSION "%s"\n' "$$VERSION_STRING" | tee $(SRC_DIR)/version.h ; fi \
          )
@@ -1202,12 +1215,7 @@ object_creator: version $(BUILD_PREFIX)cataclysm.a
 clean-object_creator:
 	$(MAKE) -C object_creator clean
 
-validate-pr:
-ifneq ($(CYGWIN),1)
-	@build-scripts/validate_pr_in_jenkins
-endif
-
-.PHONY: tests check ctags etags clean-tests install lint validate-pr
+.PHONY: tests check ctags etags clean-tests install lint
 
 -include $(SOURCES:$(SRC_DIR)/%.cpp=$(DEPDIR)/%.P)
 -include ${OBJS:.o=.d}
