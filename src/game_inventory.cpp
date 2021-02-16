@@ -293,23 +293,23 @@ class armor_inventory_preset: public inventory_selector_preset
             }, _( "WARMTH" ) );
 
             append_cell( [ this ]( const item_location & loc ) {
-                return get_number_string( loc->bash_resist() );
+                return get_decimal_string( loc->bash_resist() );
             }, _( "BASH" ) );
 
             append_cell( [ this ]( const item_location & loc ) {
-                return get_number_string( loc->cut_resist() );
+                return get_decimal_string( loc->cut_resist() );
             }, _( "CUT" ) );
 
             append_cell( [ this ]( const item_location & loc ) {
-                return get_number_string( loc->bullet_resist() );
+                return get_decimal_string( loc->bullet_resist() );
             }, _( "BULLET" ) );
 
             append_cell( [ this ]( const item_location & loc ) {
-                return get_number_string( loc->acid_resist() );
+                return get_decimal_string( loc->acid_resist() );
             }, _( "ACID" ) );
 
             append_cell( [ this ]( const item_location & loc ) {
-                return get_number_string( loc->fire_resist() );
+                return get_decimal_string( loc->fire_resist() );
             }, _( "FIRE" ) );
 
             append_cell( [ this ]( const item_location & loc ) {
@@ -1309,6 +1309,10 @@ class weapon_inventory_preset: public inventory_selector_preset
                                       loc.obtain_cost( this->p ) + ( this->p.is_wielding( *loc.get_item() ) ? 0 :
                                               ( *loc.get_item() ).on_wield_cost( this->p ) ) );
             }, _( "WIELD COST" ) );
+        }
+
+        bool is_shown( const item_location &loc ) const override {
+            return loc->made_of( phase_id::SOLID );
         }
 
         std::string get_denial( const item_location &loc ) const override {
