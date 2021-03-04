@@ -2657,8 +2657,8 @@ bool repair_item_actor::handle_components( player &pl, const item &fix,
                                       _( "You don't have enough %s to do that.  Have: %d, need: %d" ),
                                       item::nname( mat_comp, 2 ),
                                       item::find_type( mat_comp )->count_by_charges() ?
-                                      crafting_inv.amount_of( mat_comp, false ) :
-                                      crafting_inv.charges_of( mat_comp, items_needed ),
+                                      crafting_inv.charges_of( mat_comp, items_needed ) :
+                                      crafting_inv.amount_of( mat_comp, false ),
                                       items_needed );
             }
         }
@@ -4264,7 +4264,7 @@ int sew_advanced_actor::use( player &p, item &it, bool, const tripoint & ) const
     }
 
     auto filter = [this]( const item & itm ) {
-        return itm.is_armor() && !itm.is_firearm() && !itm.is_power_armor() &&
+        return itm.is_armor() && !itm.is_firearm() && !itm.is_power_armor() && !itm.is_gunmod() &&
                itm.made_of_any( materials );
     };
     // note: if !p.is_npc() then p is avatar.
@@ -4297,9 +4297,12 @@ int sew_advanced_actor::use( player &p, item &it, bool, const tripoint & ) const
     std::map< itype_id, bool > has_enough;
     const int items_needed = mod.volume() / 750_ml + 1;
     const inventory &crafting_inv = p.crafting_inventory();
+    const std::function<bool( const item & )> is_filthy_filter = is_crafting_component;
+
     // Go through all discovered repair items and see if we have any of them available
     for( const clothing_mod &cm : clothing_mods::get_all() ) {
-        has_enough[cm.item_string] = crafting_inv.has_amount( cm.item_string, items_needed );
+        has_enough[cm.item_string] = crafting_inv.has_amount( cm.item_string, items_needed, false,
+                                     is_filthy_filter );
     }
 
     int mod_count = 0;
